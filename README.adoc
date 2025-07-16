@@ -1,6 +1,6 @@
 = CloudBees action: Get Jira Issues
 
-Use this action to retrieve Jira issues using JQL (Jira Query Language) queries. The action returns issue data in JSON format that can be used by subsequent workflow steps.
+Retrieve Jira issues using JQL (Jira Query Language) queries and return issue data in JSON format.
 
 == Inputs
 
@@ -21,27 +21,27 @@ Use this action to retrieve Jira issues using JQL (Jira Query Language) queries.
 | `jira-username`
 | String
 | Yes
-| Jira username or email address for authentication
+| Jira username or email address
 
 | `jira-token`
 | String
 | Yes
-| Jira API token. Generate this in your Jira account settings under Security > API tokens
+| Jira API token
 
 | `jql`
 | String
 | Yes
-| JQL (Jira Query Language) query to filter issues. Examples: `"project = TEST"`, `"assignee = currentUser() AND status = 'In Progress'"`
-
-| `max-results`
-| Number
-| No
-| Maximum number of results to return. Default is `50`. Maximum allowed by Jira is typically `1000`
+| JQL (Jira Query Language) query to filter issues
 
 | `fields`
 | String
 | No
 | Comma-separated list of fields to return (e.g. 'summary,status,assignee')
+
+| `max-results`
+| Number
+| No
+| Maximum number of issues to return. Default is `50`
 
 |===
 
@@ -67,128 +67,79 @@ Use this action to retrieve Jira issues using JQL (Jira Query Language) queries.
 
 == Usage Examples
 
-=== Basic Usage - Get Open Issues
+=== Get Open Issues
 
 [source,yaml]
 ----
 - name: Get open issues
-  uses: ./jira-get-issues
+  uses: https://github.com/cloudbees-days/jira-get-issues@v1
   id: get-issues
   with:
-    jira-url: https://mycompany.atlassian.net
-    jira-username: ${{ secrets.JIRA_USERNAME }}
+    jira-url: ${{ vars.JIRA_URL }}
+    jira-username: ${{ vars.JIRA_USERNAME }}
     jira-token: ${{ secrets.JIRA_TOKEN }}
-    jql: "project = MYPROJECT AND status != Done"
+    jql: "project = PROJ AND status != Done"
+    max-results: 50
 
 - name: Show issue count
-  uses: docker://alpine:3.22
-  shell: sh
   run: |
-    echo "Found ${{ steps.get-issues.outputs.count }} open issues"
+    echo "Found ${{ steps.get-issues.outputs.total }} open issues"
 ----
 
-=== Advanced Usage - Specific Fields and Pagination
+=== Get Issues with Specific Fields
 
 [source,yaml]
 ----
 - name: Get high priority bugs
-  uses: ./jira-get-issues
+  uses: https://github.com/cloudbees-days/jira-get-issues@v1
   id: get-bugs
   with:
-    jira-url: https://mycompany.atlassian.net
-    jira-username: ${{ secrets.JIRA_USERNAME }}
+    jira-url: ${{ vars.JIRA_URL }}
+    jira-username: ${{ vars.JIRA_USERNAME }}
     jira-token: ${{ secrets.JIRA_TOKEN }}
-    jql: "project = MYPROJECT AND issuetype = Bug AND priority = High"
+    jql: "project = PROJ AND issuetype = Bug AND priority = High"
     fields: "key,summary,status,assignee,created"
     max-results: 100
-    start-at: 0
 
 - name: Process issues
-  uses: docker://alpine:3.22
-  shell: sh
   run: |
-    apk add --no-cache jq
-    echo "High priority bugs:"
-    echo '${{ steps.get-bugs.outputs.issues }}' | jq -r '.[] | "- \(.key): \(.fields.summary)"'
+    echo "High priority bugs found: ${{ steps.get-bugs.outputs.total }}"
+    echo "Issues data: ${{ steps.get-bugs.outputs.issues }}"
 ----
 
-=== Complex JQL Examples
+== Setup
+
+=== Authentication
+
+1. Go to [Atlassian Account Settings](https://id.atlassian.com/manage-profile/security/api-tokens)
+2. Create an API token
+3. Store as secrets/variables in CloudBees:
+   - `JIRA_URL`: Your Jira instance URL
+   - `JIRA_USERNAME`: Your email address  
+   - `JIRA_TOKEN`: Your API token (store as secret)
+
+=== Common JQL Examples
 
 [source,yaml]
 ----
 # Get issues assigned to current user
 jql: "assignee = currentUser() AND status != Done"
 
-# Get issues updated in the last 7 days
-jql: "project = MYPROJECT AND updated >= -7d"
+# Get recently updated issues
+jql: "project = PROJ AND updated >= -7d"
 
 # Get issues with specific labels
-jql: "project = MYPROJECT AND labels in (urgent, customer-impact)"
+jql: "project = PROJ AND labels in (urgent, customer-impact)"
 
 # Get issues in multiple statuses
-jql: "project = MYPROJECT AND status in ('In Progress', 'Code Review', 'Testing')"
-
-# Complex query with multiple conditions
-jql: "project = MYPROJECT AND (priority = High OR labels = urgent) AND assignee is not EMPTY AND status != Done"
+jql: "project = PROJ AND status in ('In Progress', 'Testing')"
 ----
 
-=== Processing Results in Subsequent Steps
+=== Troubleshooting
 
-[source,yaml]
-----
-- name: Get issues for release
-  uses: ./jira-get-issues
-  id: release-issues
-  with:
-    jira-url: https://mycompany.atlassian.net
-    jira-username: ${{ secrets.JIRA_USERNAME }}
-    jira-token: ${{ secrets.JIRA_TOKEN }}
-    jql: "project = MYPROJECT AND fixVersion = 'v2.1.0'"
-    fields: "key,summary,status"
-
-- name: Generate release notes
-  uses: docker://alpine:3.22
-  shell: sh
-  run: |
-    apk add --no-cache jq
-    echo "# Release v2.1.0 Issues" > release-notes.md
-    echo "" >> release-notes.md
-    echo '${{ steps.release-issues.outputs.issues }}' | jq -r '.[] | "- \(.key): \(.fields.summary)"' >> release-notes.md
-    cat release-notes.md
-----
-
-== Authentication
-
-This action uses Jira API tokens for authentication. To set up:
-
-1. Go to your Jira account settings
-2. Navigate to Security > API tokens
-3. Create a new API token
-4. Store the token securely in your workflow secrets
-5. Use your email address as the username
-
-[WARNING]
-====
-Never hardcode credentials in your workflow files. Always use secrets or secure environment variables.
-====
-
-== JQL Query Tips
-
-* Use the Jira web interface to build and test your JQL queries before using them in workflows
-* Remember to properly escape quotes in complex queries
-* Use `currentUser()` function to make queries relative to the authenticated user
-* Date functions like `-7d` (last 7 days) or `startOfWeek()` are very useful for dynamic queries
-* Test pagination with large result sets to ensure you're getting all expected issues
-
-== Error Handling
-
-The action will fail if:
-* Authentication fails (invalid credentials)
-* JQL query is malformed
-* Jira instance is unreachable
-* API rate limits are exceeded
-
-Check the action logs for specific error messages to troubleshoot issues.
+**Authentication Failed**: Check your Jira URL, username, and API token
+**Invalid JQL**: Test your JQL query in Jira's issue search first
+**No Issues Found**: Verify the project exists and you have permission to view issues
 
 == License
 
@@ -197,6 +148,4 @@ link:https://opensource.org/license/mit/[MIT license].
 
 == References
 
-* link:https://confluence.atlassian.com/jirasoftwarecloud/advanced-searching-764478330.html[Jira JQL Documentation]
-* link:https://developer.atlassian.com/cloud/jira/platform/rest/v3/api-group-issue-search/[Jira REST API Documentation]
 * Learn more about link:https://docs.cloudbees.com/docs/cloudbees-saas-platform-actions/latest/[using actions in CloudBees workflows].
