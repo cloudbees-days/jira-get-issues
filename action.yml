@@ -37,7 +37,7 @@ runs:
     - id: get-issues
       name: Get Jira Issues
       uses: docker://ldonleycb/jira-actions:latest
-      shell: bash
+      shell: sh
       run: |
         /app/jira-actions get-issues \
           --url "${{ inputs.jira-url }}" \
