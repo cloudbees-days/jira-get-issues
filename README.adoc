@@ -41,12 +41,7 @@ Use this action to retrieve Jira issues using JQL (Jira Query Language) queries.
 | `fields`
 | String
 | No
-| Comma-separated list of fields to return. If not specified, all fields are returned. Examples: `"summary,status,assignee"` or `"key,summary,priority"`
-
-| `start-at`
-| Number
-| No
-| Index of the first issue to return (for pagination). Default is `0`
+| Comma-separated list of fields to return (e.g. 'summary,status,assignee')
 
 |===
 
@@ -60,17 +55,13 @@ Use this action to retrieve Jira issues using JQL (Jira Query Language) queries.
 | Data type
 | Description
 
-| `issues`
-| JSON Array
-| Array of issue objects returned by the query, in Jira REST API format
-
 | `total`
 | Number
-| Total number of issues matching the query (may be higher than returned count due to pagination)
+| Total number of issues found
 
-| `count`
-| Number
-| Number of issues returned in this specific response
+| `issues`
+| JSON Array
+| JSON array of issues found
 
 |===
 
