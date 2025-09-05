@@ -36,7 +36,7 @@ runs:
   steps:
     - id: get-issues
       name: Get Jira Issues
-      uses: docker://ldonleycb/jira-actions:latest
+      uses: docker://cloudbeesdemo/jira-actions:latest
       shell: sh
       run: |
         /app/jira-actions get-issues \
